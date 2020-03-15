@@ -1,0 +1,126 @@
+---
+title: "Task 2"
+author: "Johan van Tent"
+date: "4-3-2020"
+output: 
+  html_document:
+    code_folding: "hide"
+---
+
+# Assignment
+
+The first step in building a predictive model for text is understanding the distribution and relationship between the words, tokens, and phrases in the text. The goal of this task is to understand the basic relationships you observe in the data and prepare to build your first linguistic models.
+
+Tasks to accomplish
+
+1. Exploratory analysis - perform a thorough exploratory analysis of the data, understanding the distribution of words and relationship between the words in the corpora.
+2. Understand frequencies of words and word pairs - build figures and tables to understand variation in the frequencies of words and word pairs in the data.
+
+Questions to consider
+
+1. Some words are more frequent than others - what are the distributions of word frequencies?
+2. What are the frequencies of 2-grams and 3-grams in the dataset?
+3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
+4. How do you evaluate how many of the words come from foreign languages?
+5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
+
+# Loading the data
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytext)
+```
+
+```{r load-data}
+# It takes to much time to run this every time
+# 
+# download.file("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip", 
+#               "data/Coursera-SwiftKey.zip")
+# 
+# unzip("data/Coursera-SwiftKey.zip", junkpaths = TRUE, exdir = "data")
+
+
+# set to -1 for all data
+test_lines <- 10000
+
+raw_text_news <- tibble(text = read_lines("data/en_US.news.txt", n_max = test_lines)) %>% mutate(source = "news")
+raw_text_blogs <- tibble(text = read_lines("data/en_US.blogs.txt", n_max = test_lines)) %>% mutate(source = "blogs")
+raw_text_twitter <- tibble(text = read_lines("data/en_US.twitter.txt", n_max = test_lines)) %>% mutate(source = "twitter")
+
+raw_text <- bind_rows(raw_text_news, raw_text_blogs, raw_text_twitter)
+```
+
+# Initial exploratory analysis
+
+```{r}
+tidy_text <- raw_text %>%
+  mutate(line = row_number()) %>%
+  unnest_tokens(word, text)
+
+# distinct words 
+# Maybe analyse which words come from which source?
+tidy_text %>% n_distinct(word)
+tidy_text %>% group_by(source) %>% summarise(n_distinct(word))
+
+tidy_text %>% 
+  count(source, word, sort = TRUE) %>% 
+  group_by(source) %>% 
+  filter(n > 5) %>% 
+  ggplot(aes(n)) + geom_histogram() + scale_y_log10() + scale_x_log10() + facet_wrap(~source, ncol = 1)
+
+```
+
+The distribution is obviously very skewed. Most words appear not very often. A small number of words on the other hand apear quite a lot.
+
+```{r}
+
+tidy_text %>% 
+  count(source, word, sort = TRUE) %>% 
+  group_by(source) %>% 
+  top_n(15, n) %>% 
+  ggplot(aes(fct_reorder(word, n), n)) + geom_col() + facet_wrap(~source, ncol = 1, scales = "free_y") + coord_flip()
+
+```
+
+The most words that appear are not very informative - so called *stop words* What if we remove them?
+
+```{r}
+tidy_text %>% 
+  anti_join(get_stopwords(), by = "word") %>% 
+  count(source, word, sort = TRUE) %>% 
+  filter(n > 5) %>% 
+  ggplot(aes(n)) + geom_histogram() + scale_y_log10() + facet_wrap(~source, ncol = 1, scales = "free_y")
+
+tidy_text %>% 
+  anti_join(get_stopwords(), by = "word") %>% 
+  count(source, word, sort = TRUE) %>% 
+  group_by(source) %>% 
+  top_n(15, n) %>% 
+  ggplot(aes(fct_reorder(word, n), n)) + 
+  geom_col() + 
+  facet_wrap(~source) + coord_flip()
+```
+
+It is interesting to see that certain types of words are very specific to the source of the text
+
+# N-grams
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+----
+
+*Resources used*
+
+[Text mining with R](https://www.tidytextmining.com/)
+
+[Text mining workshop - Rstudio conference 2020](https://github.com/rstudio-conf-2020/text-mining)
