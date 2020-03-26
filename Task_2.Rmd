@@ -30,6 +30,7 @@ Questions to consider
 # knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(tidytext)
+library()
 ```
 
 ```{r load-data}
@@ -42,7 +43,7 @@ library(tidytext)
 
 
 # set to -1 for all data
-test_lines <- 10000
+test_lines <- -1
 
 raw_text_news <- tibble(text = read_lines("data/en_US.news.txt", n_max = test_lines)) %>% mutate(source = "news")
 raw_text_blogs <- tibble(text = read_lines("data/en_US.blogs.txt", n_max = test_lines)) %>% mutate(source = "blogs")
@@ -57,6 +58,8 @@ raw_text <- bind_rows(raw_text_news, raw_text_blogs, raw_text_twitter)
 tidy_text <- raw_text %>%
   mutate(line = row_number()) %>%
   unnest_tokens(word, text)
+
+text_count <- tidy_text %>% count(word, sort = TRUE)
 
 # distinct words 
 # Maybe analyse which words come from which source?
@@ -106,14 +109,82 @@ It is interesting to see that certain types of words are very specific to the so
 
 # N-grams
 
+2. What are the frequencies of 2-grams and 3-grams in the dataset?
+
 ```{r}
+text_count
+
+# raw_text %>%
+#   mutate(line = row_number()) %>%
+#   unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+#   separate(bigram, c("word1", "word2"), sep = " ") %>%
+#   count(word1, word2, sort = TRUE)
+
+# raw_text %>%
+#   mutate(line = row_number()) %>%
+#   unnest_tokens(trigram, text, token = "ngrams", n = 3) %>% 
+#   separate(trigram, c("word1", "word2", "word3"), sep = " ") %>%
+#   count(word1, word2, word3, sort = TRUE)
+
 
 ```
 
+# Fractions needed
 
+3. How many unique words do you need in a frequency sorted dictionary to cover 50% of all word instances in the language? 90%?
 
+```{r}
 
+total_words <- nrow(tidy_text)
 
+text_cum <- text_count %>% mutate(cum_sum = cumsum(n))
+
+# 50%
+n_words_50 <- text_cum %>% filter(cum_sum < 0.5 * total_words) %>% nrow()
+# 90%
+n_words_90 <- text_cum %>% filter(cum_sum < 0.9 * total_words) %>% nrow()
+
+# 99%
+n_words_99 <- text_cum %>% filter(cum_sum < 0.99 * total_words) %>% nrow()
+
+# all
+n_words_all <- text_cum %>% nrow()
+
+n_words_single <- text_cum %>% filter(n == 1) %>% nrow()
+
+n_words_50
+n_words_50 / n_words_all
+n_words_90
+n_words_90 / n_words_all
+n_words_99
+n_words_99 / n_words_all
+
+n_words_single
+n_words_single / n_words_all
+
+```
+
+# Foreign words
+
+4. How do you evaluate how many of the words come from foreign languages?
+Use an English dictionary
+
+```{r}
+
+english <- text_count %>% mutate(english = tolower(word) %in% tolower(qdapDictionaries::GradyAugmented))
+english %>% group_by(english) %>% count()
+english %>% group_by(english) %>% summarise(times_used = sum(n)) 
+# english %>% filter(!english) %>% View()
+
+```
+
+Note that a lot of names or contractions are not considered English. It is however questionable if these should be used as word suggestions
+
+# Increasing coverage
+
+5. Can you think of a way to increase the coverage -- identifying words that may not be in the corpora or using a smaller number of words in the dictionary to cover the same number of phrases?
+
+????
 
 
 

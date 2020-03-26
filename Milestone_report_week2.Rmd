@@ -1,0 +1,122 @@
+---
+title: "Task 2"
+author: "Johan van Tent"
+date: "4-3-2020"
+output: 
+  html_document:
+    code_folding: "hide"
+---
+
+The goal of this project is just to display that you've gotten used to working with the data and that you are on track to create your prediction algorithm. Please submit a report on R Pubs (http://rpubs.com/) that explains your exploratory analysis and your goals for the eventual app and algorithm. This document should be concise and explain only the major features of the data you have identified and briefly summarize your plans for creating the prediction algorithm and Shiny app in a way that would be understandable to a non-data scientist manager. You should make use of tables and plots to illustrate important summaries of the data set. The motivation for this project is to: 
+1. Demonstrate that you've downloaded the data and have successfully loaded it in. 
+2. Create a basic report of summary statistics about the data sets.
+3. Report any interesting findings that you amassed so far.
+4. Get feedback on your plans for creating a prediction algorithm and Shiny app. 
+
+# Loading the data
+
+```{r setup, include=FALSE}
+# knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidytext)
+```
+
+```{r load-data}
+# It takes a lot of time to run every time and it is not necessary
+# 
+# dir.create("data")
+# download.file("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip", 
+#               "data/Coursera-SwiftKey.zip")
+# 
+# unzip("data/Coursera-SwiftKey.zip", junkpaths = TRUE, exdir = "data")
+
+
+# set to -1 for all data
+test_lines <- 5000
+
+raw_text_news <- tibble(text = read_lines("data/en_US.news.txt", n_max = test_lines)) %>% mutate(source = "news")
+raw_text_blogs <- tibble(text = read_lines("data/en_US.blogs.txt", n_max = test_lines)) %>% mutate(source = "blogs")
+raw_text_twitter <- tibble(text = read_lines("data/en_US.twitter.txt", n_max = test_lines)) %>% mutate(source = "twitter")
+
+raw_text <- bind_rows(raw_text_news, raw_text_blogs, raw_text_twitter)
+```
+
+# Initial exploratory analysis
+
+```{r}
+tidy_text <- raw_text %>%
+  mutate(line = row_number()) %>%
+  unnest_tokens(word, text)
+
+# distinct words 
+# Maybe analyse which words come from which source?
+total_dinstinct_words <- tidy_text %>% n_distinct(word)
+group_distinct_words <- tid %>% group_by(source) %>% summarise(n_distinct(word))
+
+tidy_text %>% 
+  count(source, word, sort = TRUE) %>% 
+  group_by(source) %>% 
+  filter(n > 5) %>% 
+  ggplot(aes(n)) + geom_histogram() + scale_y_log10() + scale_x_log10() + facet_wrap(~source, ncol = 1)
+
+```
+
+The distribution is obviously very skewed. Most words appear not very often. A small number of words on the other hand apear quite a lot.
+
+```{r}
+
+tidy_text %>% 
+  count(source, word, sort = TRUE) %>% 
+  group_by(source) %>% 
+  top_n(15, n) %>% 
+  ggplot(aes(fct_reorder(word, n), n)) + geom_col() + facet_wrap(~source, ncol = 1, scales = "free_y") + coord_flip()
+
+```
+
+The most words that appear are not very informative - so called *stop words* What if we remove them?
+
+```{r}
+tidy_text %>% 
+  anti_join(get_stopwords(), by = "word") %>% 
+  count(source, word, sort = TRUE) %>% 
+  filter(n > 5) %>% 
+  ggplot(aes(n)) + geom_histogram() + scale_y_log10() + facet_wrap(~source, ncol = 1, scales = "free_y")
+
+tidy_text %>% 
+  anti_join(get_stopwords(), by = "word") %>% 
+  count(source, word, sort = TRUE) %>% 
+  group_by(source) %>% 
+  top_n(15, n) %>% 
+  ggplot(aes(fct_reorder(word, n), n)) + 
+  geom_col() + 
+  facet_wrap(~source) + coord_flip()
+```
+
+It is interesting to see that certain types of words are very specific to the source of the text
+
+# N-grams
+
+```{r}
+
+raw_text %>%
+  mutate(line = row_number()) %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 3) %>% 
+  separate(bigram, c("word1", "word2", "word3"), sep = " ") %>%
+  count(word1, word2, word3, sort = TRUE)
+
+```
+
+
+
+
+
+
+
+
+----
+
+*Resources used*
+
+[Text mining with R](https://www.tidytextmining.com/)
+
+[Text mining workshop - Rstudio conference 2020](https://github.com/rstudio-conf-2020/text-mining)
